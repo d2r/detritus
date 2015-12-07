@@ -1,0 +1,98 @@
+#!/usr/bin/env /bash
+set -e
+
+
+
+declare -a Daemons=( \
+        'dev-zookeeper'
+        'drpc'
+        'logviewer'
+        'nimbus'
+        'pacemaker'
+        'supervisor'
+        'ui'
+        )
+declare -a DaemonJpsNames=( \
+        'dev_zookeeper'
+        'drpc'
+        'logviewer'
+        'nimbus'
+        'pacemaker'
+        'supervisor'
+        'core'
+        )
+declare -a Running
+declare -a Selections
+readonly JpsOut="$(jps)"
+
+
+
+function findOutWhatsRunning() {
+    for i in $(seq 0 $(( ${#DaemonJpsNames[@]} - 1 )))
+    do
+        echo "$JpsOut" | grep ${DaemonJpsNames[$i]} \
+            && Running[$i]='[up]' \
+            || Running[$i]='[down]'
+    done
+}
+
+
+
+function refreshSelections() {
+    for i in $(seq 0 $(( ${#Daemons[@]} - 1 )))
+    do
+        Selections[$i]="${Daemons[$i]}${Running[$i]}${Selected[$i]}"
+    done
+}
+
+
+
+function applySelections() {
+    for i in $(seq 0 $(( ${#Daemons[@]} - 1)))
+    do
+        if [[ -n "${Selected[$i]}" ]]
+        then
+            if [[ '[up]' == "${Running[$i]}" ]]
+            then
+                local readonly pid="$(echo "$JpsOut" \
+                    | grep ${DaemonJpsNames[$i]} \
+                    | sed 's; .*;;')"
+                echo "Killing ${Daemons[$i]} pid $pid"
+                kill "$pid"
+            else
+                echo "Starting ${Daemons[$i]}"
+                bin/storm "${Daemons[$i]}" &
+            fi
+        fi
+    done
+}
+
+
+
+# main
+
+
+
+findOutWhatsRunning
+
+while :
+do
+    refreshSelections
+    select Selection in ${Selections[@]} 'Apply'
+    do
+        case "$REPLY" in
+            [1-${#Daemons[@]}])
+                idx="$(( REPLY - 1 ))"
+                if [[ -n "${Selected[$idx]}" ]]
+                then
+                    Selected[$idx]=''
+                else
+                    Selected[$idx]='*'
+                fi
+                break;;
+            $(( ${#Daemons[@]} + 1))) applySelections; exit 0;;
+            *) echo 'Nothing selected.  Quitting.'; exit 1;;
+        esac
+        test -z "$REPLY" && exit 1
+    done
+done
