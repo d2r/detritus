@@ -93,6 +93,6 @@ do
             $(( ${#Daemons[@]} + 1))) applySelections; exit 0;;
             *) echo 'Nothing selected.  Quitting.'; exit 1;;
         esac
-        test -z "$REPLY" && exit 1
     done
+    test -z "$REPLY" && exit 1
 done
