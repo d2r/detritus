@@ -31,8 +31,8 @@ function findOutWhatsRunning() {
     for i in $(seq 0 $(( ${#DaemonJpsNames[@]} - 1 )))
     do
         echo "$JpsOut" | grep ${DaemonJpsNames[$i]} \
-            && Running[$i]='[up]' \
-            || Running[$i]='[down]'
+            && Running[$i]='[Running]' \
+            || Running[$i]=''
     done
 }
 
@@ -47,12 +47,23 @@ function refreshSelections() {
 
 
 
+function launchDaemon() {
+    local readonly Daemon="$1"
+
+    echo "Starting $Daemon"
+    ( bin/storm "$Daemon" \
+         2>"$Daemon.err" \
+         >"$Daemon.out" ) &
+}
+
+
+
 function applySelections() {
     for i in $(seq 0 $(( ${#Daemons[@]} - 1)))
     do
         if [[ -n "${Selected[$i]}" ]]
         then
-            if [[ '[up]' == "${Running[$i]}" ]]
+            if [[ '(Running)' == "${Running[$i]}" ]]
             then
                 local readonly pid="$(echo "$JpsOut" \
                     | grep ${DaemonJpsNames[$i]} \
@@ -60,8 +71,7 @@ function applySelections() {
                 echo "Killing ${Daemons[$i]} pid $pid"
                 kill "$pid"
             else
-                echo "Starting ${Daemons[$i]}"
-                bin/storm "${Daemons[$i]}" &
+                launchDaemon ${Daemons[$i]}
             fi
         fi
     done
@@ -78,7 +88,9 @@ findOutWhatsRunning
 while :
 do
     refreshSelections
-    select Selection in ${Selections[@]} 'Apply'
+    echo
+    echo 'Select deamons whose state to toggle, then APPLY'
+    select Selection in ${Selections[@]} 'APPLY'
     do
         case "$REPLY" in
             [1-${#Daemons[@]}])
@@ -87,11 +99,11 @@ do
                 then
                     Selected[$idx]=''
                 else
-                    Selected[$idx]='*'
+                    Selected[$idx]='☜'
                 fi
                 break;;
             $(( ${#Daemons[@]} + 1))) applySelections; exit 0;;
-            *) echo 'Nothing selected.  Quitting.'; exit 1;;
+            *) ;;
         esac
     done
     test -z "$REPLY" && exit 1
