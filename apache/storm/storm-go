@@ -49,11 +49,14 @@ function refreshSelections() {
 
 function launchDaemon() {
     local readonly Daemon="$1"
+    local readonly LogDir='storm-go-logs'
+
+    mkdir -p "$LogDir"
 
     echo "Starting $Daemon"
     ( bin/storm "$Daemon" \
-         2>"$Daemon.err" \
-         >"$Daemon.out" ) &
+         2>"$LogDir/$Daemon.err" \
+         >"$LogDir/$Daemon.out" ) &
 }
 
 
