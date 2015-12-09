@@ -31,7 +31,7 @@ function findOutWhatsRunning() {
     for i in $(seq 0 $(( ${#DaemonJpsNames[@]} - 1 )))
     do
         echo "$JpsOut" | grep ${DaemonJpsNames[$i]} \
-            && Running[$i]='[Running]' \
+            && Running[$i]='(Running)' \
             || Running[$i]=''
     done
 }
