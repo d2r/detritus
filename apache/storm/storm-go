@@ -27,12 +27,23 @@ readonly JpsOut="$(jps)"
 
 
 
+function isRunning() {
+    echo "$JpsOut" | grep ${DaemonJpsNames[$i]} &>/dev/null \
+        && return 0 \
+        || return 1
+}
+
+
+
 function findOutWhatsRunning() {
     for i in $(seq 0 $(( ${#DaemonJpsNames[@]} - 1 )))
     do
-        echo "$JpsOut" | grep ${DaemonJpsNames[$i]} \
-            && Running[$i]='(Running)' \
-            || Running[$i]=''
+        if isRunning "$i"
+        then
+            Running[$i]='(Running)'
+        else
+            Running[$i]=''
+        fi
     done
 }
 
@@ -42,6 +53,38 @@ function refreshSelections() {
     for i in $(seq 0 $(( ${#Daemons[@]} - 1 )))
     do
         Selections[$i]="${Daemons[$i]}${Running[$i]}${Selected[$i]}"
+    done
+}
+
+
+
+function selectIdx() {
+    if [[ -n "${Selected[$1]}" ]]
+    then
+        Selected[$1]=''
+    else
+        Selected[$1]='☜'
+    fi
+}
+
+
+
+function selectRunning() {
+    for i in $(seq 0 $(( ${#Daemons[@]} - 1)))
+    do
+        if isRunning "$i"
+        then
+            selectIdx "$i"
+        fi
+    done
+}
+
+
+
+function selectAll() {
+    for i in $(seq 0 $(( ${#Daemons[@]} - 1)))
+    do
+        selectIdx "$i"
     done
 }
 
@@ -89,26 +132,37 @@ function applySelections() {
 
 
 
+if [[ ! -x 'bin/storm' ]]
+then
+    echo 'Could not find executable bin/storm' >&2
+    exit 1
+fi
+
 findOutWhatsRunning
 
+PS3='
+#? '
 while :
 do
     refreshSelections
     echo
     echo 'Select deamons whose state to toggle, then APPLY'
-    select Selection in ${Selections[@]} 'APPLY'
+    select Selection in ${Selections[@]} 'Toggle Running' 'Toggle All' 'APPLY'
     do
         case "$REPLY" in
             [1-${#Daemons[@]}])
                 idx="$(( REPLY - 1 ))"
-                if [[ -n "${Selected[$idx]}" ]]
-                then
-                    Selected[$idx]=''
-                else
-                    Selected[$idx]='☜'
-                fi
+                selectIdx "$idx"
                 break;;
-            $(( ${#Daemons[@]} + 1))) applySelections; exit 0;;
+            $(( ${#Daemons[@]} + 1)))
+                selectRunning
+                break;;
+            $(( ${#Daemons[@]} + 2)))
+                selectAll
+                break;;
+            $(( ${#Daemons[@]} + 3)))
+                applySelections
+                exit 0;;
             *) ;;
         esac
     done
