@@ -63,7 +63,7 @@ function selectIdx() {
     then
         Selected[$1]=''
     else
-        Selected[$1]='☜'
+        Selected[$1]='✔'
     fi
 }
 
